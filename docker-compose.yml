@@ -1,0 +1,31 @@
+services:
+  comfyui:
+    build:
+      context: .
+      target: comfyui
+      args:
+        - USER_ID=${UID:-1000}
+        - GROUP_ID=${GID:-1000}
+    container_name: comfyui
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - PYTHONUNBUFFERED=1
+        #      - PYTHONHOME=/app/python
+    ports:
+      - "8188:8188"
+    volumes:
+      - ./custom_nodes:/home/comfy/ComfyUI/custom_nodes
+      - ./models:/home/comfy/ComfyUI/models
+      - ./input:/home/comfy/ComfyUI/input
+      - ./output:/home/comfy/ComfyUI/output
+      - ./user:/home/comfy/ComfyUI/user
+      - ./python:/usr/local/lib/python3.10
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+                #    restart: unless-stopped
