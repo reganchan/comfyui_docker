@@ -146,17 +146,14 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y software-properties-common && \
     add-apt-repository ppa:deadsnakes/ppa && \
     apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-pip python3-venv git curl ca-certificates libgomp1 libpng16-16 libjpeg-turbo8
+    python3 python3-pip python3-venv git curl ca-certificates libgomp1 libpng16-16 libjpeg-turbo8 \
+    libxcb-randr0-dev libxcb-xtest0-dev libxcb-xinerama0-dev libxcb-shape0-dev libxcb-xkb-dev
 
 # Create group and user matching your host IDs
 RUN groupadd -g ${GROUP_ID} comfy && \
     useradd -l -u ${USER_ID} -g comfy -m comfy
 
 RUN chmod u+s "$(which pip3)"
-RUN chown comfy:comfy /usr/local/bin
-
-USER comfy
-WORKDIR /home/comfy
 
 # Copy the built wheels from the wheel-builder stage
 COPY --from=torch-builder /wheels/ /wheels/
@@ -166,9 +163,16 @@ COPY --from=kornia /wheels/*.whl /wheels/
 RUN find /wheels -name '*.whl' -type f -exec pip3 install --find-links /wheels {} +
 
 # Get ComfyUI
+WORKDIR /home/comfy
 RUN git clone --branch v0.22.1 'https://github.com/comfy-org/ComfyUI'
 WORKDIR /home/comfy/ComfyUI
 RUN pip3 install -r requirements.txt
+RUN pip3 install -r manager_requirements.txt
+
+RUN apt-get install -y libgl1
+RUN chown -R comfy:comfy /home/comfy/ComfyUI
+RUN chmod u+s /usr/lib/python3
+USER comfy
 
 EXPOSE 8188
-CMD ["python3", "main.py", "--listen", "0.0.0.0"]
+CMD ["python3", "main.py", "--enable-manager", "--listen", "0.0.0.0"]
