@@ -1,7 +1,7 @@
 # ==========================================
 # STAGE 1: Compilation Environment Setup
 # ==========================================
-FROM nvidia/cuda:12.1.0-devel-ubuntu22.04 AS torch-builder
+FROM nvidia/cuda:12.9.2-devel-ubuntu22.04 AS torch-builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -59,7 +59,7 @@ ENV TORCH_CUDA_ARCH_LIST="7.5;8.6"
 # Memory reduction
 ENV MAX_JOBS=4
 ENV BUILD_TEST=0
-ENV USE_DISTRIBUTED=0
+ENV USE_DISTRIBUTED=1
 # ENV USE_MKLDNN=0
 # ENV USE_QNNPACK=0
 ENV REL_WITH_DEB_INFO=0
@@ -69,9 +69,9 @@ ENV DEBUG=0
 # ==========================================
 # STEP 1: Build PyTorch Core (v2.5.1)
 # ==========================================
-ENV PYTORCH_BUILD_VERSION=2.4.0
+ENV PYTORCH_BUILD_VERSION=2.12.0
 ENV PYTORCH_BUILD_NUMBER=1
-RUN git clone --recursive --branch v2.4.0 https://github.com/pytorch/pytorch.git \
+RUN git clone --recursive --branch v$PYTORCH_BUILD_VERSION https://github.com/pytorch/pytorch.git \
     && cd pytorch \
     && pip install -r requirements.txt \
     && python3 setup.py bdist_wheel \
@@ -82,8 +82,8 @@ RUN git clone --recursive --branch v2.4.0 https://github.com/pytorch/pytorch.git
 # ==========================================
 # STEP 2: Build TorchVision (v0.20.1)
 # ==========================================
-ENV BUILD_VERSION=0.17.0
-RUN git clone --branch v0.17.0 https://github.com/pytorch/vision.git \
+ENV BUILD_VERSION=0.27.0
+RUN git clone --branch v$BUILD_VERSION https://github.com/pytorch/vision.git \
     && cd vision \
     && python3 setup.py bdist_wheel \
     && pip install dist/torchvision-*.whl \
@@ -93,12 +93,22 @@ RUN git clone --branch v0.17.0 https://github.com/pytorch/vision.git \
 # ==========================================
 # STEP 3: Build TorchAudio (v2.5.1)
 # ==========================================
-ENV BUILD_VERSION=2.4.0
-RUN git clone --recursive --branch v2.4.0 https://github.com/pytorch/audio.git \
+ENV BUILD_VERSION=2.11.0
+RUN git clone --recursive --branch v$BUILD_VERSION https://github.com/pytorch/audio.git \
     && cd audio \
     && python3 setup.py bdist_wheel \
     && cp dist/*.whl /wheels/ \
     && cd .. && rm -rf audio
+
+# ==========================================
+# STEP 4: Build TorchSDE (v0.2.6)
+# ==========================================
+ENV BUILD_VERSION=0.2.6
+RUN git clone --recursive --branch v$BUILD_VERSION https://github.com/google-research/torchsde.git \
+    && cd torchsde \
+    && python3 setup.py bdist_wheel \
+    && cp dist/*.whl /wheels/ \
+    && cd .. && rm -rf torchsde
 
 
 # --- STAGE 2: Build kornia-rs
@@ -136,7 +146,7 @@ RUN pip3 wheel --no-cache-dir --no-deps kornia_rs==0.1.0 kornia==0.7.1
 
 
 # --- STAGE 3: Your ComfyUI Image ---
-FROM nvidia/cuda:12.1.0-devel-ubuntu22.04 AS comfyui
+FROM nvidia/cuda:12.9.2-devel-ubuntu22.04 AS comfyui
 
 # Accept IDs from build-args
 ARG USER_ID=1000
@@ -146,8 +156,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y software-properties-common && \
     add-apt-repository ppa:deadsnakes/ppa && \
     apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-pip python3-venv git curl ca-certificates libgomp1 libpng16-16 libjpeg-turbo8 \
-    libxcb-randr0-dev libxcb-xtest0-dev libxcb-xinerama0-dev libxcb-shape0-dev libxcb-xkb-dev
+    python3 python3-pip python3-venv git curl vim ca-certificates libgomp1 libpng16-16 libjpeg-turbo8 \
+    libxcb-randr0-dev libxcb-xtest0-dev libxcb-xinerama0-dev libxcb-shape0-dev libxcb-xkb-dev libgl1
 
 # Create group and user matching your host IDs
 RUN groupadd -g ${GROUP_ID} comfy && \
@@ -164,12 +174,15 @@ RUN find /wheels -name '*.whl' -type f -exec pip3 install --find-links /wheels {
 
 # Get ComfyUI
 WORKDIR /home/comfy
-RUN git clone --branch v0.22.1 'https://github.com/comfy-org/ComfyUI'
+RUN git clone --branch v0.30.2 'https://github.com/comfy-org/ComfyUI'
 WORKDIR /home/comfy/ComfyUI
 RUN pip3 install -r requirements.txt
 RUN pip3 install -r manager_requirements.txt
+RUN pip3 install PyWavelets lark soundfile matplotlib imageio_ffmpeg PyOpenGL-accelerate
+RUN pip3 install -U --no-build-isolation nvidia-vfx --index-url https://pypi.nvidia.com
 
-RUN apt-get install -y libgl1
+RUN curl -LsSf https://hf.co/cli/install.sh | bash
+
 RUN chown -R comfy:comfy /home/comfy/ComfyUI
 RUN chmod u+s /usr/lib/python3
 USER comfy
