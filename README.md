@@ -2,7 +2,7 @@
 
 Run [ComfyUI](https://github.com/comfy-org/ComfyUI) on Linux in Docker with NVIDIA GPU acceleration.
 
-This image is built on NVIDIA CUDA and includes a custom PyTorch stack intended to remain compatible with older AVX-capable CPUs while still using CUDA for GPU workloads.
+This image is built on NVIDIA CUDA and includes a custom PyTorch stack intended to remain compatible with older AVX-capable CPUs (No AVX2) while still using CUDA for GPU workloads. This is useful with today's RAM prices, that older machines with DDR3 can be repurposed
 
 A prebuilt image is published to GitHub Container Registry (GHCR):
 
