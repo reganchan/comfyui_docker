@@ -10,6 +10,10 @@ A prebuilt image is published to GitHub Container Registry (GHCR):
 ghcr.io/reganchan/comfyui_docker:latest
 ```
 
+Example launch screen:
+
+<img width="1801" height="1000" alt="comfyui_local_docker" src="https://github.com/user-attachments/assets/6d73d680-41e3-4061-8a0a-828cd865ac5e" />
+
 ## Features
 
 - ComfyUI running in an NVIDIA CUDA container
